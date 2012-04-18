@@ -161,6 +161,7 @@ class MainController(BaseController):
                                                                 'password':g.tc.password,'webpassword':g.tc.webpassword,
                                                                 'awskey':g.tc.awskey,'timeout':g.tc.timeout,
                                                                 'aws_secret':g.tc.aws_secret,
+                                                                'lastfmkey':g.tc.lastfmkey,
                                                                 'default_search':g.tc.default_search,
                                                                 'outputs': configured_outputs})
 

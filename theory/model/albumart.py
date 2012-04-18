@@ -33,7 +33,7 @@ class NoArtOnDisk(Exception):
     pass
 
 class AlbumArt:
-    amazonurl = None
+    weburl = None
     imgurl = None
     logger = None
 
@@ -46,7 +46,7 @@ class AlbumArt:
         """
         attempt to load an album's cover art from disk. 
         if it doesn't exist, make a request using Amazon's
-        Web Services 
+        Web Services and/or the Last.fm API.
         """
 
         self.artist = artist
@@ -63,7 +63,10 @@ class AlbumArt:
         try:
             self.check_disk()
         except NoArtOnDisk:
-            self.amazon_fetch()
+            try:
+                self.amazon_fetch()
+            except NoArtError:
+                self.lastfm_fetch()
 
     def artist_art(self,artist):
         """ return all of the album covers for a particular artist """
@@ -154,11 +157,71 @@ class AlbumArt:
             imgnodes = doc.getElementsByTagName('LargeImage')
             if len(imgnodes) > 0:
                 node = imgnodes[0]
-                self.amazonurl =  node.firstChild.firstChild.nodeValue
-                self.log('Found album art: %s' % self.amazonurl)
+                self.weburl =  node.firstChild.firstChild.nodeValue
+                self.log('Found album art: %s' % self.weburl)
                 break
 
-        if not self.amazonurl:
+        if not self.weburl:
+            raise NoArtError
+
+        self.save_to_disk()
+
+    def lastfm_fetch(self):
+        """ 
+        attempts to fetch album cover art from last.fm and 
+        calls save_to_disk() to save the largest image permanently
+        to avoid subsequent lookups.
+        no album? get a picture of the artist.
+        get a key for the last.fm API here: http://www.last.fm/api/account
+        example URL: http://ws.audioscrobbler.com/2.0/?method=album.getinfo&api_key=b25b959554ed76058ac220b7b2e0a026&artist=Cher&album=Believe
+        """
+
+        album = self.album if self.album != 'undefined' else ''
+        artist = self.artist if self.artist != 'undefined' else ''
+
+        if g.tc.lastfmkey == '' or not artist:
+            raise NoArtError
+
+        type = 'album' if (album and artist) else 'artist'
+
+        artist_safe = urllib2.quote(artist)
+        album_safe = urllib2.quote(album)
+
+        query_string = {'api_key': g.tc.lastfmkey, 'artist': artist_safe}
+
+        if type == 'album':
+            query_string.update({'method': 'album.getinfo','album': album_safe})
+
+        elif type == 'artist':
+            query_string.update({'method': 'artist.getinfo'})
+
+        query_string_sorted = '&'.join(['='.join(kv) for kv in sorted(query_string.items())])
+
+        url = {'verb': 'GET',
+                     'protocol': 'http://',
+                     'host': 'ws.audioscrobbler.com',
+                     'request_uri': '/2.0',
+                     'query_string': query_string_sorted.replace(':','%3A')}
+
+        real_url = url['protocol'] + url['host'] + url['request_uri'] + '?' + url['query_string']
+        
+        try:
+            self.log('Fetching last.fm %s image: %s' % (type, real_url))
+            urlfile = urllib2.urlopen(real_url)
+        except urllib2.URLError:
+            # there are probably other exceptions that need to be caught here.. 
+            self.log('Error fetching last.fm XML')
+            raise NoArtError
+
+        doc = xml.dom.minidom.parse(urlfile)
+        urlfile.close()
+        images = doc.getElementsByTagName('image')
+        node = filter(lambda x: x.getAttribute('size') == 'extralarge' and x.parentNode.parentNode.nodeName == 'lfm', images)[0]
+        if node.hasChildNodes():
+            self.weburl =  node.firstChild.nodeValue
+            self.log('Found %s art: %s' % (type, self.weburl))
+
+        if not self.weburl:
             raise NoArtError
 
         self.save_to_disk()
@@ -183,7 +246,7 @@ class AlbumArt:
     def save_to_disk(self):
         """ save the fetched cover image to disk permanently """
         try:
-            urlfile = urllib2.urlopen(self.amazonurl)
+            urlfile = urllib2.urlopen(self.weburl)
         except urllib2.URLError:
             raise NoArtError
 

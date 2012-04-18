@@ -97,6 +97,14 @@
     </tr>
     <tr>
         <td align=right>
+            Last.fm API Key:</td>
+        <td>
+            ${h.html.tags.text('lastfmkey', None, size=32)}<br />
+            (for automatic downloading of album / artist art)
+        </td>
+    </tr>
+    <tr>
+        <td align=right>
             Default search type:</td>
         <td>
             ${h.html.tags.select('default_search', None, app_globals.searchterms, id="default_search", style_="margin-left:0px")}</td>
@@ -122,4 +130,6 @@
 
 </form>
 
-<div style="color:white;margin-top:25px">sign up for an Amazon Developer Key at <a href="https://aws-portal.amazon.com/gp/aws/developer/registration/index.html" target="_blank">https://aws-portal.amazon.com/gp/aws/developer/registration/index.html</a></div>
+<div style="color:white;margin-top:25px">sign up for an Amazon Developer Key at <a href="https://aws-portal.amazon.com/gp/aws/developer/registration/index.html" target="_blank">https://aws-portal.amazon.com/gp/aws/developer/registration/index.html</a><br/>
+sign up for a Last.fm Developer Key at <a href="http://www.last.fm/api/account" target="_blank">http://www.last.fm/api/account</a>
+</div>
